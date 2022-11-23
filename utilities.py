@@ -1,110 +1,48 @@
-from __future__ import division
-#import cPickle as pickle
-import csv
-import numpy as np
-import sys
-import os
 #import cPickle as pickle
 import pickle
-from nltk.corpus import stopwords
-import json
-import gzip
-from tqdm import tqdm
-from collections import Counter
-from collections import defaultdict
+#import hickle
+import numpy as np
 
+from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import state_ops
+from tensorflow.python.framework import ops
+from tensorflow.python.training import optimizer
 
-def batchify(data, i, bsz, max_sample):
-    start = int(i * bsz)
-    end = int(i * bsz) + bsz
-    if(end>max_sample):
-        end = max_sample
-    data = data[start:end]
-    return data
+import tensorflow as tf
 
-def dict_to_list(data_dict):
-    data_list = []
-    for key, value in tqdm(data_dict.items(),
-                            desc='dict conversion'):
-        for v in value:
-            data_list.append([key, v[0], v[1]])
-    return data_list
+#def load_pickle(fin):
+#	with open(fin,'r') as f:
+#		obj = hickle.load(f)
+#	return obj
 
-def dictToFile(dict,path):
-    print ("Writing to {}".format(path))
-    with gzip.open(path, 'w') as f:
-        f.write(json.dumps(dict))
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor
+  (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    with tf.name_scope('stddev'):
+      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
 
-def dictFromFileUnicode(path):
-    '''
-    Read js file:
-    key ->  unicode keys
-    string values -> unicode value
-    '''
-    print ("Loading {}".format(path))
-    with gzip.open(path, 'r') as f:
-        return json.loads(f.read())
-
-def load_pickle(fin):
-    with open(fin,'r') as f:
-        obj = pickle.load(f)
-    return obj
-
-def select_gpu(gpu):
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
-    if(gpu>=0):
-        os.environ["CUDA_VISIBLE_DEVICES"]=str(gpu)
-
-def load_pickle(fin):
-    with open(fin,'r') as f:
-        obj = pickle.load(f)
-    return obj
-
-def load_set(fin):
-    data = []
-    with open(fin, 'r') as f:
-        reader= csv.reader(f, delimiter='\t')
-        for r in reader:
-            data.append(r)
-    return data
-
-def length_stats(lengths, name=''):
-    print("=====================================")
-    print("Length Statistics for {}".format(name))
-    print("Max={}".format(np.max(lengths)))
-    print("Median={}".format(np.median(lengths)))
-    print("Mean={}".format(np.mean(lengths)))
-    print("Min={}".format(np.min(lengths)))
-
-def show_stats(name, x):
-    print("{} max={} mean={} min={}".format(name,
-                                        np.max(x),
-                                        np.mean(x),
-                                        np.min(x)))
-
-def print_args(args, path=None):
-    if path:
-        output_file = open(path, 'w')
-    args.command = ' '.join(sys.argv)
-    items = vars(args)
-    if path:
-        output_file.write('=============================================== \n')
-    for key in sorted(items.keys(), key=lambda s: s.lower()):
-        value = items[key]
-        if not value:
-            value = "None"
-        if path is not None:
-            output_file.write("  " + key + ": " + str(items[key]) + "\n")
-    if path:
-        output_file.write('=============================================== \n')
-    if path:
-        output_file.close()
-    del args.command
-
-def mkdir_p(path):
-    if path == '':
-        return
-    try:
-        os.makedirs(path)
-    except:
-        pass
+def model_stats():
+  print("============================================================")
+  print("List of all Trainable Variables")
+  tvars = tf.trainable_variables()
+  all_params = []
+  for idx, v in enumerate(tvars):
+    print(" var {:3}: {:15} {}".format(idx, str(v.get_shape()), v.name))
+    num_params = 1
+    param_list = v.get_shape().as_list()
+    if(len(param_list)>1):
+      for p in param_list:
+        if(p>0):
+          num_params = num_params * int(p)
+    else:
+      all_params.append(param_list[0])
+    all_params.append(num_params)
+  print("Total number of trainable parameters {}".format(np.sum(all_params)))
